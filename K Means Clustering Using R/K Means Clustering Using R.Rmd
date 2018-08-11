@@ -1,0 +1,128 @@
+---
+title: "K-Means Clustering Using R"
+author: "Kent Ng"
+date: "May 24, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The iris data set iris.txt contains 150 data points, each with four predictor variables and one categorical response. The predictors are the width and length of the sepal and petal of flowers and the response is the type of flower. The data is available from the R library datasets and can be accessed with iris once the library is loaded. It is also available at the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Iris ). The response values are only given to see how well a specific method performed and should not be used to build the model. We will be using K means the cluster the points as well as possible.
+
+As best practice, let's set seed value.
+```{r}
+set.seed(42)
+```
+
+Next, we have to load the data from the given .txt file into our "data_4" variable.
+```{r}
+data_4 <- read.table("4.2irisSummer2018.txt")
+head(data_4)
+```
+
+Let's take a look and see the structure and distribution of our data.
+```{r}
+str(data_4)
+summary(data_4)
+```
+
+Next, let's add a plot to better understand and visualize the data. Based on these plots, we can see which pair of predictors have strong correlation with each other.
+```{r}
+plot(data_4)
+```
+
+Let's call the k-means clustering method. Since we are trying to classify 3 different types of species, it makes sense to set k =3. However, technically, we're not supposed to know what the response variable is when using clustering techniques (hence why this is a type of unsupervised learning). So intead, let's leverage the elbow diagram (introduced in the Week 2 lectures) to determine a good value for k.
+
+```{r}
+distances<-rep(0,25)
+for(k_clusters in 1:20){
+  cluster <- kmeans(data_4[,1:4],k_clusters)
+  distances[k_clusters]<-cluster$tot.withinss
+}
+plot(distances, xlab="Number of Clusters",ylab="Total Distance from Points to Clusters", type = "b", frame = TRUE)
+```
+
+Looking at the elbow diagram, it also makes sense to use k = 3; after k = 3, the benefits realized from adding additional clusters become comparatively small.
+
+Now that we've selected a k value, we can also try out different combinations of predictors to see which clustering model fits our data the best.
+
+Let's first select Sepal.Length and Sepal.Width as our initial set of predictors.
+```{r}
+kmeans_cluster1<-kmeans(data_4[,1:2],centers=3,nstart=30)
+head(kmeans_cluster1)
+```
+We can see how well the clustering predicted the flower types by comparing the results to the original Species data. Note once again that, in a real world situation, we wouldn't know the response variable (Species in this case) and so normally we wouldn't be able to do this type of validation.
+```{r}
+table(kmeans_cluster1$cluster,data_4$Species)
+```
+We can see that the data points for Setosa were grouped into Cluster 1. On the other hand, it is not as clear cut for the species Versicolor and Virginica. One can assume that data points for Versicolor were grouped into Cluster 2 and, likewise, data points for Virginica into Cluster 3. If that is the case, this means that 12 points were incorrectly classified as Versicolor and 15 points were incorrectly classified as Virginica. Let's try other sets of predictors to see if we can get better results.
+
+This time, let's try using Petal.Length and Petal.Width as our predictors
+```{r}
+kmeans_cluster2<-kmeans(data_4[,3:4],centers=3,nstart=30)
+table(kmeans_cluster2$cluster,data_4$Species)
+```
+Here we can see that the results are much better! We can confidently see that Cluster 1,2 and 3 contain the data points for Virginica, Setosa and Versicolor respectively. Here, we only have 6 points that were misclassified.
+
+But what if we add more predictors in our clustering model? To answer this question, let's try Using Sepal.Length, Sepal.Width, Petal.Length and Petal.Width all as predictors
+```{r}
+kmeans_cluster3<-kmeans(data_4[,1:4],centers=3,nstart=30)
+table(kmeans_cluster3$cluster,data_4$Species)
+```
+Using this set of predictors, we have 16 misclassifications. This shows that having more predictors does not mean the clustering prediction will be better! One explanation is that introducing uncorrelated predictors doesn't really help or improve our clustering model, yet it introduces more noise in our clustering.
+
+####Let's try other combinations of predictors
+
+```{r}
+#Sepal.Length and Petal.Length as predictors - Result: 18 misclassifications.
+kmeans_cluster5<-kmeans(data_4[,c(1,3)],centers=3,nstart=30)
+table(kmeans_cluster5$cluster,data_4$Species)
+
+
+#Sepal.Length and Petal.Width as predictors - Result: 28 misclassifications.
+kmeans_cluster6<-kmeans(data_4[,c(1,4)],centers=3,nstart=30)
+table(kmeans_cluster6$cluster,data_4$Species)
+
+#Sepal.Width and Petal.Length as predictors - Result: 11 misclassifications.
+kmeans_cluster7<-kmeans(data_4[,c(2,3)],centers=3,nstart=30)
+table(kmeans_cluster7$cluster,data_4$Species)
+
+#Sepal.Width and Petal.Width as predictors - Result: 11 misclassifications.
+kmeans_cluster8<-kmeans(data_4[,c(2,4)],centers=3,nstart=30)
+table(kmeans_cluster7$cluster,data_4$Species)
+
+#Sepal.Length, Sepal.Width and Petal.Length as predictors - Result: 18 misclassifications.
+kmeans_cluster4<-kmeans(data_4[,1:3],centers=3,nstart=30)
+table(kmeans_cluster4$cluster,data_4$Species)
+
+#Sepal.Width, Petal.Length, Petal.Width as predictors - Result: 7 misclassifications.
+kmeans_cluster9<-kmeans(data_4[,2:4],centers=3,nstart=30)
+table(kmeans_cluster9$cluster,data_4$Species)
+
+#Sepal.Width, Petal.Length, Petal.Width as predictors - Result: 26 misclassifications.
+kmeans_cluster10<-kmeans(data_4[,c(1,2,4)],centers=3,nstart=30)
+table(kmeans_cluster10$cluster,data_4$Species)
+
+#Sepal.Width, Petal.Length, Petal.Width as predictors - Result: 16 misclassifications.
+kmeans_cluster11<-kmeans(data_4[,c(1,3,4)],centers=3,nstart=30)
+table(kmeans_cluster11$cluster,data_4$Species)
+```
+
+Therefore, we can see that using Petal.Length and Petal.Width as predictors produced the best clustering for predicting the flower types. K was set to 3 given that it was the sweet spot in our elbow diagram, indicating that it is the most "bang for the buck" from a computation perspective. Overall, the clustering had 6 misclassifications out of 150 points (96% accuracy). Note that for the purpose of this question, we will not be testing the accuracy of our model using a test dataset.
+
+We can use ggplot to visually confirm that the cluster model (using petal length and width as predictors) indeed did a good job in grouping the data by flower species.
+```{r}
+library(ggplot2)
+ggplot(data_4,aes(Petal.Length,Petal.Width,color=Species))+geom_point()
+```
+
+
+
+
+
+
+
+
+
