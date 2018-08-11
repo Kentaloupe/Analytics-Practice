@@ -1,0 +1,82 @@
+---
+title: "KNN Classification Including K Fold Cross Validation for Model Selection"
+author: "Kent Ng"
+date: "May 21, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let's begin by loading the KKNN R package (already installed). We will also set seed value to 42 as best practice.
+```{r}
+library(kknn)
+set.seed(42)
+```
+Next let's load our data into a table.
+```{r}
+data_2_3<-read.table("2.2credit_card_data-headersSummer2018.txt", header = T, sep='\t')
+```
+
+Train KNN model using the whole dataset (excluding the point being classified itself)
+```{r}
+predicted<-rep(0,(nrow(data_2_3)))
+for (i in 1:nrow(data_2_3)){
+  model = kknn(R1~.,data_2_3[-i,],data_2_3[i,],k=10, scale = TRUE)
+  predicted[i]<-as.integer(fitted(model)+0.5)
+}
+```
+Finally, let's compare model predictions with actual classification. Note that we will not be using a test/validation dataset for the purpose of this activity; these topics will be touched upon in later projects. However, we will be using k-fold cross validation to select between two models below.
+
+```{r}
+sum(predicted == data_2_3[,11]) / nrow(data_2_3)
+```
+
+We can explore other values of K to try and see if we can get a better accuracy. First, let's try to vary the k value from 1-20.
+```{r}
+for (x in 1:20){
+  print (x)
+  predicted_new<-rep(0,(nrow(data_2_3)))
+  for (i in 1:nrow(data_2_3)){
+    model = kknn(R1~.,data_2_3[-i,],data_2_3[i,],k=x, scale = TRUE)
+    predicted_new[i]<-as.integer(fitted(model)+0.5)
+  }
+  accuracy = sum(predicted_new == data_2_3[,11]) / nrow(data_2_3)
+  print(accuracy)
+}
+```
+It appears that k = 12 and 15 gives the best model accuracy. Let's try varying the k value in bigger magnitudes.
+```{r}
+for (x in c(15,30,50,100,200,400,600)){
+  print (x)
+  predicted_new<-rep(0,(nrow(data_2_3)))
+  for (i in 1:nrow(data_2_3)){
+    model = kknn(R1~.,data_2_3[-i,],data_2_3[i,],k=x, scale = TRUE)
+    predicted_new[i]<-as.integer(fitted(model)+0.5)
+  }
+  accuracy = sum(predicted_new == data_2_3[,11]) / nrow(data_2_3)
+  print(accuracy)
+}
+```
+It is obvious that as the value of k continues to increase, the model accuracy continues to decrease. Therefore, we can confidently say that 12 and 15 are good choices for K. Below we will use k fold cross validation to determine which model is better.
+
+First we will need another library.
+```{r}
+library(data.table)
+```
+
+To confirm that the our results are in line with what we discovered above, let's test k values from 1 to 20.
+```{r}
+for(i in 1:20){
+  cv = cv.kknn(R1~.,data_2_3,kcv=10,scale=TRUE, k = i)
+  cv = data.table(cv[[1]])
+  #print ('Cross Validation Accuracy')
+  print(i)
+  accuracy = sum(cv$y == round(cv$yhat))/nrow(data_2_3)
+  print(accuracy)
+}
+```
+
+From this, we can see that the results align with what we concluded previously. Here, we can see that the knn model with k = 12 has the highest model accuracy; thus this is the classifier of choice.
+
