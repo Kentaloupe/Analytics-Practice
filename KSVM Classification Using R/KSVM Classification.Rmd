@@ -1,0 +1,98 @@
+---
+title: K-SVM Classification Using R
+author: "Kent Ng"
+date: "May 20, 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let's begin by loading the kernlab R package (already installed). Setting a seed value as best practice.
+```{r}
+library(kernlab)
+set.seed(42)
+```
+
+Next, load "2.2credit_Card_data-headersSummer2018.txt" into a dataframe
+
+```{r}
+data_2_1<-read.table("2.2credit_card_data-headersSummer2018.txt", header = T, sep='\t')
+```
+
+View first 6 rows of the data to ensure the data was loaded properly
+```{r}
+head(data_2_1)
+```
+Just for fun, let's take a look at how the data is structured and distributed.
+```{r}
+str(data_2_1)
+summary(data_2_1)
+```
+
+Now lets call KSVM and see the coefficient values of A1 to A15
+```{r}
+model<-ksvm(as.matrix(data_2_1[,1:10]),as.factor(data_2_1[,11]),type="C-svc",kernel="vanilladot",C=100,scaled=TRUE)
+
+a<-colSums(model@xmatrix[[1]]*model@coef[[1]])
+a
+```
+
+We can also find value of A0 from the ksvm model
+```{r}
+A0<--model@b
+A0
+```
+
+Therefore, the equation of the classifier is: 
+
+0.08158492 - 0.0010065348(A1) - 0.0011729048(A2) - 0.0016261967(A3) + 0.0030064203(A8) + 1.0049405641(A9) - 0.0028259432(A10) + 0.0002600295(A11) - 0.0005349551(A12) - 0.0012283758(A14) + 0.1063633995(A15) = 0
+
+Let's see what the model predicts
+```{r}
+pred<-predict(model,data_2_1[,1:10])
+pred
+```
+
+Compare model predictions with actual classification (a.k.a model accuracy). For the purpose of this project, we will not validate our model accuracy using a test data set; therefore, our model will likely be overfitted and the model accuracy will be overstated. We will do so in later projects.
+```{r}
+sum(pred == data_2_1[,11]) / nrow(data_2_1)
+```
+
+We can explore other values of C to try and see if we can get a better accuracy. First, let's try to vary the k value from 100-105.
+
+```{r}
+for(i in 100:105){
+  model_new<-ksvm(as.matrix(data_2_1[,1:10]),as.factor(data_2_1[,11]),type="C-svc",kernel="vanilladot",C=i,scaled=TRUE)
+  pred_new<-predict(model_new,data_2_1[,1:10])
+  print(i)
+  print (sum(pred_new == data_2_1[,11]) / nrow(data_2_1))
+}
+```
+
+We can see that varying the C value by 1 to 10 has minimal effect to the model accuracy. Let's try changes in larger magnitude.
+
+```{r}
+for(i in c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,200,300,1000,10000)){
+  model_new<-ksvm(as.matrix(data_2_1[,1:10]),as.factor(data_2_1[,11]),type="C-svc",kernel="vanilladot",C=i,scaled=TRUE)
+  pred_new<-predict(model_new,data_2_1[,1:10])
+  print(i)
+  print (sum(pred_new == data_2_1[,11]) / nrow(data_2_1))
+}
+```
+
+We can see that the model accuracy is at its highest when C is in the 0.01 to 200, after which the model accuracy begins to drop. Therefore, our C=100 value is a good (enough) choice.
+
+Out of curiosity, let's try a different kernel ("Gaussian") in our ksvm model to see if it would increase our model accuracy
+```{r}
+model_new<-ksvm(as.matrix(data_2_1[,1:10]),as.factor(data_2_1[,11]),type="C-svc",kernel="rbfdot",C=100,scaled=TRUE)
+pred_newkern<-predict(model_new,data_2_1[,1:10])
+sum(pred_newkern == data_2_1[,11]) / nrow(data_2_1)
+```
+
+As we can see, using a different kernel of the ksvm can drastically change the performance of the model. 
+
+  
