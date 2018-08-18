@@ -1,0 +1,124 @@
+---
+title: "Linear Regression Modelling"
+author: "Kent Ng"
+date: "May 31, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Using the dataset "8.2uscrimesummer2018.txt", let's build a linear model and use it to predict the crime rate of a new city with the following data:
+
+  M = 14.0
+  So = 0
+  Ed = 10.0
+  Po1 = 12.0
+  Po2 = 15.5
+  LF = 0.640
+  M.F = 94.0
+  Pop = 150
+  NW = 1.1
+  U1 = 0.120
+  U2 = 3.6
+  Wealth = 3200
+  Ineq = 20.1
+  Prob = 0.04
+  Time = 39.0
+
+
+Let's first load the data into a dataframe. We will also set a seed value as best practice.
+```{r}
+set.seed(42)
+data_8<-read.table("8.2uscrimeSummer2018.txt",header=TRUE)
+```
+Let's do a quick exploratory analysis on our data. Using the summary method and the boxplot, we can see roughly the distribution of our data.
+```{r}
+head(data_8)
+str(data_8)
+summary(data_8)
+boxplot(data_8$Crime)
+```
+
+Next, let's build our linear regression model based on the provided data.
+```{r}
+model_all<-lm(Crime~.,data_8)
+```
+Using the model we just developed, lets estimate the crime rate based on the given parameters in the question
+```{r]}
+datapoint<-data.frame(M=14.0,So=0,Ed=10.0,Po1=12.0,Po2=15.5,LF=0.640,M.F=94.0,Pop=150,NW=1.1,U1=0.120,U2=3.6,Wealth=3200,Ineq=20.1,Prob=0.04,Time=39.0)
+predict(model_all,datapoint)
+```
+If we compare the crime rate prediction of 155.43 with our given data set, this prediction seems to be an outlier (review box plot above). As the question mentioned, because we have 15 predictors but only 47 data points, our model is likely overfitted and has a high degree of error. Although we were given 15 predictors, it is likely that not all of them are useful for our model. Let's now take a look at the P value of each coefficient. This is fourth column of the summary below. We can see that the predictors M, Ed, Ineq and Prob are signficant based on an alpha value of 0.05. We can also see that predictors Po1 and U2 barely missed the 0.05 threshold. Given that 0.05 is an arbitrary cutoff, we will also play around with predictors Po1 and U2 to determine whether they actually help our model. 
+
+One additional note: the outputted R squared value of 0.7078 is based on our training data. Thus we should not use the value to comment on the model's overall quality of fit, given that it is likely going to be too optimistic; applying the model on another (validation) set would likely yield a much lower R squared value (you will see this as we calculate the cross validated R squared value below).
+
+```{r}
+summary(model_all)
+```
+Let's include only the significant predictors. As mentioned previously, since the threshold of 0.05 is arbitrary (and also because we have limited number of data points), we will also include Po1 and U2 in this simplified model 
+```{r}
+model_sig<-lm(Crime~M+Ed+Po1+U2+Ineq+Prob,data_8)
+summary(model_sig)
+```
+Now let's use our new model to, once again, predict the crime rate based on the given parameters in the question.
+```{r}
+predict(model_sig,datapoint)
+```
+This time, the crime rate prediction of 1304.245 seems to be much more in line with the rest of the data. Let's now determine our model's quality of fit. We can use the cross validation for linear regression method in the DAAG (Data Analysis and Graphics Data and Functions) package
+```{r}
+library(DAAG)
+model_sig_cv<-cv.lm(data_8, model_sig,seed=42, m=5)
+```
+Therefore, the average mean squared error of the model is 45359. We can calculate the sum of squared errors, total sum of squared differences, and finally, the R squared value.
+```{r}
+# Calculate Mean Squared Error
+MSE_sig = attr(model_sig_cv,"ms")
+MSE_sig
+
+# Calculate Sum of Squared Errors
+SSR_sig<-MSE_sig*nrow(data_8)
+SSR_sig
+
+# Calculate Sum of Squared Differences
+SSTOT_sig<-sum((data_8$Crime - mean(data_8$Crime))^2)
+SSTOT_sig
+
+# Calculate R Squared
+R2_sig<-1-(SSR_sig/SSTOT_sig)
+R2_sig
+```
+Therefore, the calculated overall R squared value is 0.69, meaning that 69% of the variation in the data is caused by variations in the predictors. As mentioned in the lectures, a R squared value of 0.69 (especially after cross validation) is considered quite high in many real life situations. Thus, the model_sig is likely to be an adequate (good enough) model. 
+
+For the purpose of having a comparison, however, let's build one more linear regression model using predictors with a p value of strictly 0.05 or lower (excludes Po1 and U2 in model_sig)
+```{r}
+model_0.05<-lm(Crime~M+Ed+Ineq+Prob,data_8)
+summary(model_0.05)
+model_0.05_cv<-cv.lm(data_8, model_0.05,seed=42, m=5)
+```
+We can already see that the mean squared error value is greater than that of our previous model (with predictors Po1 and U2 included). This means that the R squared value will be much lower (shown below), and that model_sig is better than model_0.05
+
+model_sig is a better model than model_0.05.
+```{r}
+# Calculate Mean Squared Error
+MSE_0.05 = attr(model_0.05_cv,"ms")
+MSE_0.05
+
+# Calculate Sum of Squared Errors
+SSR_0.05<-MSE_0.05*nrow(data_8)
+SSR_0.05
+
+# Sum of Sqaured Differences is the same as the previous model
+SSTOT_sig
+
+# Calculate R Squared
+R2_0.05<-1-(SSR_0.05/SSTOT_sig)
+R2_0.05
+```
+
+
+
+
+
+
