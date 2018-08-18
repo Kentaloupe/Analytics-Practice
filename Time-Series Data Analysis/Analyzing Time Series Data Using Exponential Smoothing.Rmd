@@ -1,0 +1,58 @@
+---
+title: "Analyzing Time-Series Data using Exponential Smoothing Model"
+author: "Kent Ng"
+date: "June 2, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Using the 20 years of daily high temperature data for Atlanta (file temps.txt), let's build and leverage an exponential smoothing model to help make a judgment of whether the unofficial end of summer has gotten later over the 20 years.
+
+Let's first load the given data into a dataframe and set a seed value as best practice.
+
+```{r cars}
+set.seed(42)
+data_7<-read.table("7.2tempsSummer2018.txt",header=TRUE)
+head(data_7)
+```
+
+For the HoltWinter (exponential smoothing) model, we require our data to be in a time series object rather than a dataframe.
+```{r}
+data_7_vector<-as.vector(unlist(data_7[,2:21]))
+data_ts<-ts(data_7_vector,start=1996, frequency=123)
+class(data_ts)
+head(data_ts)
+``` 
+
+Now that we have our time series object, let's call the HoltWinter method. By setting alpha, beta and gamma to NULL, R will find the optimal values for each of the parameters that gives our model the best fit. Further, as mentioned in the lectures, there are two ways exponential smoothing can deal with seasonality. One of the key differences between the two is that for additive seasonality, the amplitude of the seasonal variation is independent of the level; contrarily, multiplicative seasonality is dependent on the level. Here we will utilize the multiplicative method as taught in the lectures. 
+```{r}
+HoltWinterModel<-HoltWinters(data_ts, alpha=NULL,beta=NULL,gamma=NULL, seasonal="multiplicative")
+```
+We can plot our HoltWinterModel to see how the smoothing works (the red shows the plot of calculated baseline values). The STR() function will also show us the alpha, beta and gamma used in the model.
+```{r}
+plot(HoltWinterModel)
+str(HoltWinterModel)
+```
+
+In regards to the original question of whether the unofficial end of summer has gotten later over the 20 years, there are many ways to answer this. For example, we could simply conduct CUSUM on the temperature data, as we did in last week's homework. Instead, here, we will run a CUSUM change detection analysis on the seasonality coefficient (which acts as a proxy) to determine our last day of summer for each year. The seasonality coefficient signifies that the baseline is expected to change solely because of the current time period in the cycle. 
+
+Below, we will extract the seasonality coefficients from the Holt-Winter model we developed and store it in a matrix
+```{r}
+seasonality<-matrix(HoltWinterModel$fitted[,4],123)
+head(seasonality)
+``` 
+
+We can now export our seasonality into Excel to conduct our CUSUM change detection analysis.
+```{r}
+library(xlsx)
+#workbook<-loadWorkbook("CUSUM.xlsx")
+#sheets<-getSheets(workbook)
+#sheet<-sheets[[1]]
+#addDataFrame(seasonality,sheet,col.names=FALSE,row.names=FALSE,startRow=2,startColumn=3)
+write.csv(seasonality, "CUSUM.csv")
+```
+
+
