@@ -1,0 +1,64 @@
+---
+title: "Principal Component Analysis"
+author: "Kent Ng"
+date: "June 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Leveraging the code from the Linear Regression project, let's once again build a linear model using the crime data set (9.1uscrimeSummer2018.txt). However, this time we will first apply the Principal Component Analysis and will only use the first few principal components.
+
+First, let's set seed value as best practice. We will also load the given data into a dataframe
+```{r}
+set.seed(42)
+data_9.1<-read.table("9.1uscrimeSummer2018.txt",header=TRUE)
+head(data_9.1)
+```
+Let's leverage the prcomp() function to conduct principal component analysis (PCA) on our data
+```{r}
+pca<-prcomp(data_9.1[,1:15],scale=TRUE)
+summary(pca)
+```
+We can further visualize our results by plotting our variances 
+```{r}
+plot(pca)
+```
+
+
+
+From the table and graph above, it appears that the first 4 components accounts for 86% of the variance in our data. Let's extract the first 4 components to be used in our linear model below.
+```{r}
+PCA_data<-data.frame(cbind(pca$x[,1:4],data_9.1$Crime))
+names(PCA_data)<-c('P1','P2','P3','P4','Crime')
+```
+Now let's use our PCA components to build the linear model.
+```{r}
+lm<-lm(Crime~.,PCA_data)
+summary(lm)
+```
+We now need to convert our model's coefficients 
+```{r}
+coefficients_conv<-(pca$rotation[,1:4] %*%lm$coefficients[2:5])/pca$scale
+```
+We will also have to adjust our intercept based on the PCA center
+```{r}
+int<-lm$coefficient[1]-sum(coefficients_conv*pca$center)
+```
+
+Let's now use the data point for the new city to once again predict the crime rate.
+```{r}
+point<-data.frame(M=14.0,So = 0,Ed = 10.0,Po1 = 12.0,Po2 = 15.5, LF = 0.640, M.F = 94.0, Pop = 150, NW = 1.1, U1 = 0.120, U2 = 3.6, Wealth = 3200, Ineq = 20.1, Prob = 0.04, Time = 39.0)
+```
+We can now calculate the crime rate based on the converted intercept and coefficients.
+```{r}
+crime <- sum(coefficients_conv[1,1] %*% point$M,coefficients_conv[2,1] %*% point$So,coefficients_conv[3,1] %*% point$Ed,coefficients_conv[4,1] %*% point$Po1,coefficients_conv[5,1] %*% point$Po2,coefficients_conv[6,1] %*% point$LF,coefficients_conv[7,1] %*% point$M.F,coefficients_conv[8,1] %*% point$Pop,coefficients_conv[9,1] %*% point$NW,coefficients_conv[10,1] %*% point$U1,coefficients_conv[11,1] %*% point$U2,coefficients_conv[12,1] %*% point$Wealth,coefficients_conv[13,1] %*% point$Ineq,coefficients_conv[14,1] %*% point$Prob,coefficients_conv[15,1] %*% point$Time,int)
+
+crime
+```
+My linear regression model from the Linear Regression project predicted 1304 as the crime rate for the new city. Here, we can see that our linear model using PCA predicts 1112.678 as the city's crime rate. Looking at the summary of the model (below), the R squared value (0.3091) for this model is actually much worse compared to that of the model in 8.2 (which was 0.69).
+```{r}
+summary(lm)
+```
